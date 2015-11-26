@@ -1,0 +1,525 @@
+"""
+main.py
+imported package:
+    re
+    os
+    pickle
+    tkinter
+    tkinter.messagebox
+global variable:
+    EPSILON
+    result
+    HasJudged
+    root
+    pm_judge
+    pm_query
+    outputtext
+    outputlabel
+funtion:
+    getpath
+    mcalc
+    judge
+    savedata
+    main
+    bn_judge_act
+    bn_query_act
+    app_cli
+    app_gui
+    clear_outputtext
+"""
+
+import re
+import os
+import pickle
+import tkinter
+import tkinter.messagebox
+
+EPSILON=1e-12
+#result saves all the data
+result={'students':[],'grades':[],'questionnums':[]}
+#HasJudged records whether judge() has been called
+HasJudged=False
+
+#for GUI widget
+root=0
+pm_judge=0
+pm_query=0
+outputtext=0
+outputlabel=0
+
+
+def getpath():
+    """This function get a path from stdin.
+    A relative path or a absolute path is acceptable.
+    Absolute path should be like 'C:\\\\...' or '\\\\..' or '/...' or 'C:/...', and relative path should not begin with \\,/.
+    If enter after inputing nothing ,it will return the current working directory.
+    e.g.:   getpath()
+    """
+    
+    tipstring="""Please input a location.A relative or absolute path is acceptable.
+    Inputint a null string means that the current working space is appointed.
+    Pease input a path : """
+    flag=True
+    ans=os.getcwd()
+    while flag:
+        filepath=input(tipstring)
+        if re.match('([A-Za-z]:)?[\\\\]{1,2}',filepath)!=None:
+            ans = filepath
+        elif re.match('([A-Za-z]:)?/',filepath)!=None:
+            ans = filepath
+        else:
+            ans = os.getcwd()+'\\'+filepath
+        if os.path.isdir(ans):
+            flag=False
+        else:
+            print('ILLEGAL PATH!  Please re-input.')
+    return ans
+
+def mcalc(num1,ope,num2):
+    """calc num1 ope num2, ope can be +,-,*,/
+e.g.:  mcalc(2,'/',4.5)
+"""
+    global EPSILON
+    
+    if ope=='+':
+        return num1+num2
+    elif ope=='-':
+        return num1-num2
+    elif ope=='*':
+        return num1*num2
+    elif ope=='/':
+        if abs(num2)<EPSILON:
+            return None
+        else:
+            return num1/num2
+    else:
+        return None
+
+def judge(path=''):
+    """This function judges all the papers.
+If the path=='',it will prompt for a input which indicates a path where
+the papers is saved.
+It returns the result in a dictionary,keys=('students','grades','questionnums').
+e.g.:  judge()  ,  judge('Papers')
+"""
+    global result
+    global HasJudged
+    global EPSILON
+    
+    #get path
+    if path=="":
+        print("We need a location to get all the papers (input texture files).Inputing '' means current working directory.")
+        print("请输入试卷所在的位置(直接敲回车/Enter 将采用当前工作目录%s)"%os.getcwd())
+        path=getpath()
+        print()
+    elif not os.path.isdir(path):
+        print('The given path is ILLEGAL. Please re-input.')
+        path=getpath()
+        print()
+    else:
+        temp=1
+
+    #get files
+    print('Getting access to files 搜集文件 ...\nSearching files 搜集中 ...')
+    papers=[i for i in os.listdir(path) if os.path.isfile(path+'\\'+i) and i.endswith('.txt') and i!='score.txt']
+    print('Files access has been gotten. 文件搜集结束 ---\n')
+
+    #reset contemporary variable
+    grades=[]
+    students=[]
+    questionnums=[]
+
+    #judge
+    print('Starting judging 开始判卷 ... \nJudging 判卷中...')
+    for file in papers:
+        name=file[:file.rfind('.')]
+        #print(name)
+        infile=open(path+'\\'+file,'tr')
+        qusnum=0
+        cornum=0
+        for line in infile:
+            #count questions
+            qusnum=qusnum+1
+            #异常处理
+            try:
+                #separate ans
+                equind=line.find('=')
+                ans=line[equind+1:].strip(' ()\n')
+                #separate question
+                qus=line[:equind]
+                qus=qus.replace(' ','')
+                #deal with the case that num1 is negative  处理 -1*2
+                #  and find ope
+                if qus[0]=='-':  # -1*2
+                    ope=re.search('[\+\-\*/]',qus[1:]).group(0)
+                    opeind=qus[1:].find(ope)+1
+                elif qus[:2]=='(-':  # (-1)*2
+                    ope=re.search('[\+\-\*/]',qus[2:]).group(0)
+                    opeind=qus[2:].find(ope)+2
+                else:       #normal case
+                    ope=re.search('[\+\-\*/]',qus).group(0)
+                    opeind=qus.find(ope)
+                #get nums,and strip (,),' '
+                num1=qus[:opeind].strip(' ()')
+                num2=qus[opeind+1:].strip(' ()')
+                #judge whether answer is right
+                num1=float(num1)
+                num2=float(num2)
+                ans=float(ans)
+                if ope=='/' and abs(num2)<EPSILON:
+                    cornum=cornum+1
+                elif mcalc(num1,ope,num2)!=None and abs(mcalc(num1,ope,num2)-ans)<EPSILON:
+                    cornum=cornum+1
+            except:
+                print("A wrong format in line %d in paper %s : '%s'"%(qusnum,file,line))
+                print("无法处理的字符串，在 行 %d ， 文件 %s : '%s'"%(qusnum,file,line))
+                
+        infile.close()
+        questionnums.append(qusnum)
+        students.append(name)
+        if qusnum==0:
+            grades.append(100.0)
+        else:
+            grades.append(round(cornum/qusnum*10000)/100)
+
+     #put result data to variable 'result'       
+    result.update([['students',students],['grades',grades],['questionnums',questionnums]])
+
+    print('The judgement has ended. 判卷结束 ---\n')
+
+    #print result to 'score.txt'
+    print('Now print grades to score.txt 将成绩打印到 score.txt ...\nPrinting 打印中...')
+    outfile=open('score.txt','wt')
+    outfile.write('姓名或编号\t得分(百分制)\t总的题目数量\n')
+    for i in range(0,len(result['grades'])):
+        outfile.write(result['students'][i]+'\t')
+        if len(result['students'][i])<9:
+            outfile.write('\t')
+        outfile.write('{0:.2f}'.format(result['grades'][i])+'\t\t')
+        outfile.write(str(result['questionnums'][i])+'\n')
+    outfile.close()
+    print('All grades have been printed to score.txt. 成功打印到 score.txt ---\n')
+
+    #print result to screen
+    print("""Now print grades to screen:
+现在将输出所有试卷的成绩:\n""")
+    print('姓名或编号\t得分(百分制)\t总的题目数量\n',end='')
+    for i in range(0,len(result['grades'])):
+        print(result['students'][i]+'\t',end='')
+        if len(result['students'][i])<9:
+            print(end='\t')               
+        print('{0:.2f}'.format(result['grades'][i])+'\t\t',end='')
+        print(str(result['questionnums'][i]))
+    print('\nAll grades are printed below. 成绩已打印  ---\n')
+
+    #judge whether the numbers of questions of all students are the same
+    AllSameQuestionNumFlag=True
+    for i in result['questionnums']:
+        if i != result['questionnums'][0]:
+            AllSameQuestionNumFlag=False
+    if not AllSameQuestionNumFlag:
+        print(' Attention : The numbers of questions differ from paper to paper!')
+        print(' 注意 : 并不是所有人答题的数目都一样!\n')
+
+    #Set global flags
+    HasJudged=True
+
+def query(who):
+    """find the grades of who"""
+    global result
+    global HasJudged
+    
+    if not HasJudged:
+        print('You haven\'t judge the papers.\n\
+Call judge() to get the scores first.')
+        return
+    
+    if who in result['students']:
+        print('The score of {0} is {1:.2f}.'.format(\
+            who,result['grades'][result['students'].index(who)]))
+    else:
+        print('The person %s does not exist in data.'%(who))
+
+def savedata():
+    """save result to data file 'result.db'
+    return value:
+    0 : success
+    1 : havn't called judge yet
+    e.g.: savedata()
+"""
+    global HasJudged
+    global result
+
+    if HasJudged:
+        f=open('result.db','wb')
+        pickle.dump(result,f)
+        return 0
+    else:
+        return 1
+    
+        
+def app_cli():
+    """main function of cli"""
+    global result
+    
+    print('-------This is an auto-grading system---------',end='\n')
+    print('System starts successfully.',end='\n\n')
+
+    result=judge()
+    savedata()
+
+    print("""System has already judged the papers.
+Now you can call 'judge' to re-judge, or call 'query(name)' to query.
+And you can exit whenever you like.
+系统已经批改完成。可以调用 judge 来重新改卷，或者调用 query(name) 来查询成绩.
+""")
+
+def clear_outputtext():
+    """clear content of outputtext"""
+    global outputtext
+    outputtext.delete(1.0,tkinter.END)
+
+def bn_judge_act():
+    """do judge, get parameter from pm_judge
+"""
+    global pm_judge
+    global outputtext
+    global outputlabel
+
+    global result
+    global HasJudged
+    global EPSILON
+
+    #get path
+    try:
+        outputlabel["text"]="路径获取"
+        filepath=pm_judge.get()#str
+        if re.match('([A-Za-z]:)?[\\\\]{1,2}',filepath)!=None:
+            path = filepath
+        elif re.match('([A-Za-z]:)?/',filepath)!=None:
+            path = filepath
+        else:
+            path = os.getcwd()+'\\'+filepath
+        if not os.path.isdir(path):
+            tkinter.messagebox.showwarning(title="Warning 警告",message="Illegal path! 路径错误!")
+            outputlabel["text"]="Illegal path! 路径错误!"
+            return
+    except:
+        outputlabel["text"]="Illegal path! 路径错误!"
+        tkinter.messagebox.showwarning(title="Warning 警告",message="Illegal path! 路径错误!")
+        return
+
+    #get files
+    outputlabel["text"]="搜集文件"
+    papers=[i for i in os.listdir(path) if os.path.isfile(path+"\\"+i) and i.endswith('.txt') and i!='score.txt']
+
+    #reset contemporary variable
+    grades=[]
+    students=[]
+    questionnums=[]
+
+    #reset outputtext
+    outputtext.delete(1.0,tkinter.END)
+    
+    #judge
+    outputlabel["text"]="判卷中"
+    for file in papers:
+        name=file[:file.rfind('.')]
+        #print(name)
+        infile=open(path+'\\'+file,'tr')     
+        qusnum=0
+        cornum=0
+        for line in infile:
+            #count questions
+            qusnum=qusnum+1
+            #异常处理
+            try:
+                #separate ans
+                equind=line.find('=')
+                ans=line[equind+1:].strip(' ()\n')
+                #separate question
+                qus=line[:equind]
+                qus=qus.replace(' ','')
+                #deal with the case that num1 is negative  处理 -1*2
+                #  and find ope
+                if qus[0]=='-':  # -1*2
+                    ope=re.search('[\+\-\*/]',qus[1:]).group(0)
+                    opeind=qus[1:].find(ope)+1
+                elif qus[:2]=='(-':  # (-1)*2
+                    ope=re.search('[\+\-\*/]',qus[2:]).group(0)
+                    opeind=qus[2:].find(ope)+2
+                else:       #normal case
+                    ope=re.search('[\+\-\*/]',qus).group(0)
+                    opeind=qus.find(ope)
+                #get nums,and strip (,),' '
+                num1=qus[:opeind].strip(' ()')
+                num2=qus[opeind+1:].strip(' ()')
+                #judge whether answer is right
+                num1=float(num1)
+                num2=float(num2)
+                ans=float(ans)
+                if ope=='/' and abs(num2)<EPSILON:
+                    cornum=cornum+1
+                elif mcalc(num1,ope,num2)!=None and abs(mcalc(num1,ope,num2)-ans)<EPSILON:
+                    cornum=cornum+1
+            except:
+                outputtext.insert(tkinter.END,"A wrong format in line %d in paper %s : '%s'"%(qusnum,file,line))
+                outputtext.insert(tkinter.END,"无法处理的字符串，在 行 %d ， 文件 %s : '%s'"%(qusnum,file,line))
+                
+        infile.close()
+        questionnums.append(qusnum)
+        students.append(name)
+        if qusnum==0:
+            grades.append(100.0)
+        else:
+            grades.append(round(cornum/qusnum*10000)/100)
+
+    #put result data to variable 'result'       
+    result.update([['students',students],['grades',grades],['questionnums',questionnums]])
+
+    outputlabel["text"]="判卷结束"
+
+    #print result to 'score.txt'
+    outputlabel["text"]='将成绩打印到 score.txt ...'
+    outfile=open('score.txt','wt')
+    outfile.write('姓名或编号\t得分(百分制)\t总的题目数量\n')
+    for i in range(0,len(result['grades'])):
+        outfile.write(result['students'][i]+'\t')
+        if len(result['students'][i])<9:
+            outfile.write('\t')
+        outfile.write('{0:.2f}'.format(result['grades'][i])+'\t\t')
+        outfile.write(str(result['questionnums'][i])+'\n')
+    outfile.close()
+    outputlabel["text"]='成功打印到 score.txt'
+
+    #print result to screen/outputtext
+    outputlabel["text"]='输出所有试卷的成绩'
+    outputtext.insert(tkinter.END,'姓名或编号\t得分(百分制)\t总的题目数量\n')
+    for i in range(0,len(result['grades'])):
+        outputtext.insert(tkinter.END,result['students'][i]+'\t')
+        if len(result['students'][i])<9:
+            outputtext.insert(tkinter.END,'\t')               
+        outputtext.insert(tkinter.END,'{0:.2f}'.format(result['grades'][i])+'\t\t')
+        outputtext.insert(tkinter.END,str(result['questionnums'][i])+'\n')
+    outputlabel["text"]='成绩已打印'
+
+    #judge whether the numbers of questions of all students are the same
+    AllSameQuestionNumFlag=True
+    for i in result['questionnums']:
+        if i != result['questionnums'][0]:
+            AllSameQuestionNumFlag=False
+    if not AllSameQuestionNumFlag:
+        outputtext.insert(tkinter.END,'\n 注意 : 并不是所有人答题的数目都一样!\n')
+
+    #Set global flags
+    HasJudged=True
+
+    #dump result to result.db
+    savedata()
+
+
+def bn_query_act():
+    """do query,get parameter from pm_query
+find the grades of who"""
+    global pm_query
+    global outputtext
+    global outputlabel
+
+    global result
+    global HasJudged
+
+    if not HasJudged:
+        tkinter.messagebox.showinfo(title="提示",message="尚未判卷，请先判卷获得成绩")
+        outputlabel["text"]="尚未判卷"
+        return
+
+    outputtext.delete(1.0,tkinter.END)
+
+    who=pm_query.get()
+    
+    if who in result['students']:
+        outputtext.insert(tkinter.END,'{0} 的成绩是 is {1:.2f}.'.format(\
+            who,result['grades'][result['students'].index(who)]))
+        outputlabel["text"]=result['grades'][result['students'].index(who)]
+    else:
+        tkinter.messagebox.showinfo(title="提示",message="学生 {0} 不存在,请重新输入正确的名字")
+        outputtext.insert(tkinter.END,"学生 {0} 不存在,请重新输入正确的名字")
+
+def app_gui():
+    """main function of gui """
+    global root
+    global pm_judge
+    global pm_query
+    global outputtext
+    global outputlabel
+    
+    root = tkinter.Tk()
+    root.wm_title("自动改卷系统")
+
+    bn_judge=tkinter.Button(master=root,text="judge(Path)",command=bn_judge_act)
+    bn_judge.grid(row=0,column=0)
+
+    tkinter.Label(master=root,text="Path:").grid(row=0,column=1)
+    
+    pm_judge=tkinter.Entry(master=root,width=60)
+    pm_judge.grid(row=0,column=2,sticky=tkinter.W)
+    pm_judge.insert(tkinter.END,'testfile')
+
+    tkinter.Label(master=root,text="(Path为试卷所在位置。可为空，此时在当前路径下批改试卷)").grid(row=1,column=2,sticky=tkinter.W)
+
+    bn_query=tkinter.Button(master=root,text="query(Name)",command=bn_query_act)
+    bn_query.grid(row=2,column=0)
+
+    tkinter.Label(master=root,text="Name:").grid(row=2,column=1)
+    
+    pm_query=tkinter.Entry(master=root,width=60)
+    pm_query.grid(row=2,column=2,sticky=tkinter.W)
+
+    tkinter.Label(master=root,text="(Name为查询的学生的名字)").grid(row=3,column=2,sticky=tkinter.W)
+
+    tkinter.Label(master=root,text="输出结果:").grid(row=4,column=1,sticky='n')
+    
+    tkinter.Button(master=root,text="清除结果",command=clear_outputtext).grid(row=4,column=1)
+
+    outputtext=tkinter.Text(master=root,height=30,width=80)
+    outputtext.grid(row=4,column=2)
+
+    outputtext.insert(1.0,"""------------------ 说明 -----------------
+这是 自动判卷系统 的图形界面版本。
+可以在使用上面的judge按钮来判卷，query按钮来查询，
+参数请输入在相应右边的输入框中。
+
+按右上角退出按钮之后，将自动进入 自动判卷系统 的命令行版本。
+
+judge按钮的参数是路径，存放试卷txt文件的路径。
+它可以是相对路径，比如 'testfile'，这里面的是测试文件
+也可以是绝对路径
+当judge的参数框为空的时候，将使用 当前工作路径
+
+query按钮的参数是名字，要查询成绩的学生的名字
+
+请使用愉快^_^
+""")
+    
+    sb=tkinter.Scrollbar(master=root)
+    sb.grid(row=4,column=3,sticky='ns')
+    sb.config(command=outputtext.yview)
+    outputtext.config(yscrollcommand=sb.set)
+    
+
+    outputlabel=tkinter.Label(root,text="就绪")
+    outputlabel.grid(row=5,column=2,sticky='W')
+    
+    root.mainloop()
+    
+def main():
+    print("system in GUI has started.")
+    app_gui()
+    print('...System in GUI has ended...\n')
+    s=input("--  Do you want to boot the auto-grading system in Command-Line-Interface?('Y' for yes , 'N' for no)")
+    if s.upper()!='N':
+        app_cli()
+
+    
+if __name__=='__main__':
+    main()
