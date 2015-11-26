@@ -118,7 +118,7 @@ e.g.:  judge()  ,  judge('Papers')
         print()
     else:
         temp=1
-
+        
     #get files
     print('Getting access to files 搜集文件 ...\nSearching files 搜集中 ...')
     papers=[i for i in os.listdir(path) if os.path.isfile(path+'\\'+i) and i.endswith('.txt') and i!='score.txt']
@@ -182,9 +182,8 @@ e.g.:  judge()  ,  judge('Papers')
         else:
             grades.append(round(cornum/qusnum*10000)/100)
 
-     #put result data to variable 'result'       
+    #put result data to variable 'result'       
     result.update([['students',students],['grades',grades],['questionnums',questionnums]])
-
     print('The judgement has ended. 判卷结束 ---\n')
 
     #print result to 'score.txt'
@@ -265,7 +264,7 @@ def app_cli():
     print('-------This is an auto-grading system---------',end='\n')
     print('System starts successfully.',end='\n\n')
 
-    result=judge()
+    judge()
     savedata()
 
     print("""System has already judged the papers.
@@ -374,7 +373,7 @@ def bn_judge_act():
         else:
             grades.append(round(cornum/qusnum*10000)/100)
 
-    #put result data to variable 'result'       
+    #put result data to variable 'result'
     result.update([['students',students],['grades',grades],['questionnums',questionnums]])
 
     outputlabel["text"]="判卷结束"
@@ -433,17 +432,17 @@ find the grades of who"""
         outputlabel["text"]="尚未判卷"
         return
 
-    outputtext.delete(1.0,tkinter.END)
+    #outputtext.delete(1.0,tkinter.END)
 
     who=pm_query.get()
     
     if who in result['students']:
-        outputtext.insert(tkinter.END,'{0} 的成绩是 is {1:.2f}.'.format(\
+        outputtext.insert(tkinter.END,'{0} 的成绩是 is {1:.2f}.\n'.format(\
             who,result['grades'][result['students'].index(who)]))
         outputlabel["text"]=result['grades'][result['students'].index(who)]
     else:
-        tkinter.messagebox.showinfo(title="提示",message="学生 {0} 不存在,请重新输入正确的名字")
-        outputtext.insert(tkinter.END,"学生 {0} 不存在,请重新输入正确的名字")
+        tkinter.messagebox.showinfo(title="提示",message="学生 {0} 不存在,请重新输入正确的名字\n".format(who))
+        outputtext.insert(tkinter.END,"学生 {0} 不存在,请重新输入正确的名字\n".format(who))
 
 def app_gui():
     """main function of gui """
@@ -497,6 +496,8 @@ judge按钮的参数是路径，存放试卷txt文件的路径。
 当judge的参数框为空的时候，将使用 当前工作路径
 
 query按钮的参数是名字，要查询成绩的学生的名字
+
+在命令行中可以继续调用judge()函数和query()函数
 
 请使用愉快^_^
 """)
