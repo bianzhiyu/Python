@@ -2,6 +2,7 @@ import tkinter
 
 presudoku=[]
 anssudoku=[]
+outputlabel=0
 
 block=[[1,1,1,2,2,2,3,3,3],
        [1,1,1,2,2,2,3,3,3],
@@ -15,11 +16,9 @@ block=[[1,1,1,2,2,2,3,3,3],
 
 def getnums():
     global presudoku
-    global anssudoku
     
     given=[]
     nums=[]
-    
     for i in range(9):
         tmp1=[]
         tmp2=[]
@@ -102,7 +101,8 @@ def paint(nums,given):
 def run():
     global presudoku
     global anssudoku
-
+    global outputlabel
+    
     given,nums=getnums()
 
     br=[ [False for j in range(9)]   for i in range(9)]
@@ -110,11 +110,14 @@ def run():
     bb=[ [False for j in range(9)]   for i in range(9)]
 
     if precalc(given,nums,br,bc,bb):
+        outputlabel["text"]="rng"
         fillin(given,nums,0,0,br,bc,bb)
         paint(nums,given)
+        outputlabel["text"]="ok!"
     else:
+        clc()
         for i in range(8):
-            anssudoku[0][i]='ILLEGAL!'
+            anssudoku[0][i]["text"]='ILLEGAL!'[i]
 
 def clc():
     global anssudoku
@@ -127,30 +130,24 @@ def clc():
 def sudoku():
     global presudoku
     global anssudoku
+    global outputlabel
     
     root=tkinter.Tk()
     root.wm_title("sudoku")
 
-    presudoku=[]
-    anssudoku=[]
+    presudoku=[[tkinter.Entry(master=root,width=3) for j in range(9)] for i in range(9)]
+    anssudoku=[[tkinter.Label(master=root,width=3) for j in range(9)] for i in range(9)]
     for i in range(0,9):
-        temp1=[]
-        temp2=[]
         for j in range(0,9):
-            temp1.append(tkinter.Entry(master=root,width=3))
-            temp1[j].grid(row=i,column=j*2)
-            temp2.append(tkinter.Label(master=root,width=3))
-            temp2[j].grid(row=i,column=j*2+1)
-        presudoku.append(temp1)
-        anssudoku.append(temp2)
+            presudoku[i][j].grid(row=i,column=j)
+            anssudoku[i][j].grid(row=i+10,column=j)
 
-    tkinter.Button(root,text="run",command=run).grid(row=9,column=4)
-    tkinter.Button(root,text="clc",command=clc).grid(row=9,column=8)
+    tkinter.Button(root,text="run",command=run).grid(row=9,column=1)
+    tkinter.Button(root,text="clc",command=clc).grid(row=9,column=3)
+    outputlabel=tkinter.Label(root,text="rdy")
+    outputlabel.grid(row=9,column=7)
 
     root.mainloop()
-
-def foo(t):
-    t=[False]
 
 def main():
     sudoku()
